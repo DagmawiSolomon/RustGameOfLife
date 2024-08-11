@@ -1,1 +1,1 @@
-# RustGameOfLife
+# Rust Game Of Life
