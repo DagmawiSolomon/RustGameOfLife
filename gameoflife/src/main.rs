@@ -9,6 +9,12 @@ pub struct Universe {
     height: u32,
     cell: Vec<Cell>,
 }
+
+#[derive(Debug)]
+pub enum IndexError {
+    OutOfBounds(String),
+}
+
 impl Universe {
     // try passing heigh as a value
     fn get_index(&self, x: u32, y: u32) -> usize {
@@ -28,9 +34,11 @@ impl Universe {
             cell: cells,
         }
     }
-    fn get_left(&self, index: Option<u32>) -> Option<u32>{
+
+    // fix type issue
+    fn get_left(&self, index: Result<Option<u32>, IndexError>) -> Option<u32>{
         match index {
-            Some(index) => if index > 0{
+            Ok(Some(index)) => if index > 0{
                 if (index % self.width) > 0{
                     Some(index - 1)
                 } else {
@@ -39,13 +47,16 @@ impl Universe {
                 } else {
                     panic!("Right: Index out of range");
                 }
-            None => {
-                index
+            Ok(None) => {
+                Some(index)
             }
+            Err(IndexError::OutOfBounds(msg)) => println!("Error: {}", msg),
         }
         
     }
-    fn get_right(&self, index: Option<u32>) -> Option<u32>{
+
+    // fix type issue
+    fn get_right(&self, index: Result<Option<u32>, IndexError) -> Option<u32>{
        
         match index {
             Some(index) =>  if index < self.width * self.height {
@@ -63,34 +74,32 @@ impl Universe {
         }
     }
 
-    fn get_top(&self, index:u32) -> Option<u32>{
+    fn get_top(&self, index:u32) -> Result<Option<u32>, IndexError>{
         if index > self.width{
-            if index as i32 - self.width as i32 >= 0{
-                Some(index - self.width)
-            }
-            else{
-                None
-            }
-        } 
+            return Err(IndexError::OutOfBounds("Index out of range".to_string()));
+        }
+        if index as i32 - self.width as i32 >= 0{
+            Ok(Some(index - self.width))
+        }
         else{
-            panic!("Top: Index out of range");
-            None
+            Ok(None)
         }
     }
-    fn get_bottom(&self, index:u32) -> Option<u32>{
-        if index < self.height*self.width{
-            if index  + self.width  < self.height*self.width{
-                Some(index + self.width)
-            }
-            else{
-                None
-            }
-        } 
-        else{
-            panic!("Bottom: Index out of range");
-            None
+    
+    fn get_bottom(&self, index: u32) -> Result<Option<u32>, IndexError> {
+        if index >= self.width * self.height {
+            return Err(IndexError::OutOfBounds("Index out of range".to_string()));
+        }
+        
+        let new_index = index + self.width;
+        
+        if new_index >= self.width * self.height {
+            Ok(None) 
+        } else {
+            Ok(Some(new_index)) // Valid index
         }
     }
+    
     fn get_neighbours(&self, index: u32) {
 
         let left = self.get_left(Some(index));
@@ -101,7 +110,7 @@ impl Universe {
         let top_right = self.get_right(top);
 
         let bottom = self.get_bottom(index);
-        let bottom_left = self.get_left(bottom);
+        let bottom_left = self.get_left(bottom.);
         let bottom_right = self.get_right(bottom);
         println!("{:?} {:?} {:?}",top_left, top, top_right);
         println!("{:?} {:?} {:?}",left,index,right);
@@ -144,7 +153,64 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_get_left() {
+        let un = Universe::new(5, 5);
+        // Test left at index 1 (should return Some(0))
+        assert_eq!(un.get_left(Some(1)), Some(0));
+        // Test left at index 0 (should return None, as it's at the edge)
+        assert_eq!(un.get_left(Some(0)), None);
+        // Test left at index 5 (should return None, as it's at the start of the second row)
+        assert_eq!(un.get_left(Some(5)), None);
+        // Test None input (should return None)
+        assert_eq!(un.get_left(None), None);
+    }
+
+    #[test]
+    fn test_get_right() {
+        let un = Universe::new(5, 5);
+        // Test right at index 0 (should return Some(1))
+        assert_eq!(un.get_right(Some(0)), Some(1));
+        // Test right at index 4 (should return None, as it's at the edge)
+        assert_eq!(un.get_right(Some(4)), None);
+        // Test right at index 9 (should return None, as it's at the end of the second row)
+        assert_eq!(un.get_right(Some(9)), None);
+        // Test None input (should return None)
+        assert_eq!(un.get_right(None), None);
+    }
+
+    #[test]
+    fn test_get_top() {
+        let un = Universe::new(5, 5);
+        // Test top at index 6 (should return Some(1))
+        assert_eq!(un.get_top(6), Some(1));
+        // Test top at index 1 (should panic as it's in the first row)
+        let result = std::panic::catch_unwind(|| un.get_top(1));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_bottom() {
+        let un = Universe::new(5, 5);
+        // Test bottom at index 6 (should return Some(11))
+        assert_eq!(un.get_bottom(6), Some(11));
+        // Test bottom at index 21 (should return None as it's in the last row)
+        assert_eq!(un.get_bottom(21), None);
+        // Test bottom at an out-of-bound index (should panic)
+        let result = std::panic::catch_unwind(|| un.get_bottom(25));
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_get_neighbours() {
-   
+        let un = Universe::new(5, 5);
+        // Test neighbours of a center cell (index 12)
+        let neighbours = vec![
+            un.get_left(Some(12)),
+            un.get_right(Some(12)),
+            un.get_top(12),
+            un.get_bottom(12),
+        ];
+        let expected_neighbours = vec![Some(11), Some(13), Some(7), Some(17)];
+        assert_eq!(neighbours, expected_neighbours);
     }
 }
