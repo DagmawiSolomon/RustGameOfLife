@@ -1,4 +1,9 @@
-#[derive(Debug)]
+use termion::{clear, cursor};
+use std::io::{Write, stdout};
+use std::thread::sleep;
+use std::time::Duration;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Cell {
     ALIVE,
     DEAD,
@@ -12,21 +17,26 @@ pub struct Universe {
 
 impl Universe {
     fn get_index(&self, x: u32, y: u32) -> usize {
-        (y * self.height + x) as usize
+        (y * self.width + x) as usize
     }
+
     pub fn new(width: u32, height: u32) -> Universe {
-        let mut cells: Vec<Cell> = Vec::new();
-        for i in 0..(width * height) {
-            cells.push(Cell::DEAD);
-            if i % 31 == 0 {
-                cells.push(Cell::ALIVE);
-            }
-        }
+        let cells: Vec<Cell> = vec![Cell::DEAD; (width * height) as usize];
         Universe {
-            width: width,
-            height: height,
+            width,
+            height,
             cell: cells,
         }
+    }
+
+    pub fn initialize_with_pattern(&mut self, pattern: &[(u32, u32)]) {
+        for &(x, y) in pattern {
+            if x < self.width && y < self.height {
+                let index = self.get_index(x, y);
+                self.cell[index] = Cell::ALIVE;
+            }
+        }
+       
     }
 
     fn get_left(&self, index: u32) -> Option<u32> {
@@ -46,7 +56,7 @@ impl Universe {
     }
 
     fn get_top(&self, index: u32) -> Option<u32> {
-        if index > 0 && index as i32 - self.width as i32 >= 0 {
+        if index >= self.width {
             Some(index - self.width)
         } else {
             None
@@ -54,7 +64,7 @@ impl Universe {
     }
 
     fn get_bottom(&self, index: u32) -> Option<u32> {
-        if index < self.width * self.height && index + self.width < self.height * self.width {
+        if index < self.width * (self.height - 1) {
             Some(index + self.width)
         } else {
             None
@@ -79,14 +89,10 @@ impl Universe {
             self.get_right(index),
             self.get_top(index),
             self.get_bottom(index),
-            self.get_top(index)
-                .and_then(|top_index| self.get_left(top_index)),
-            self.get_top(index)
-                .and_then(|top_index| self.get_right(top_index)),
-            self.get_bottom(index)
-                .and_then(|bottom_index| self.get_left(bottom_index)),
-            self.get_bottom(index)
-                .and_then(|bottom_index| self.get_right(bottom_index)),
+            self.get_top(index).and_then(|top_index| self.get_left(top_index)),
+            self.get_top(index).and_then(|top_index| self.get_right(top_index)),
+            self.get_bottom(index).and_then(|bottom_index| self.get_left(bottom_index)),
+            self.get_bottom(index).and_then(|bottom_index| self.get_right(bottom_index)),
         ];
 
         for cell in directions {
@@ -96,10 +102,41 @@ impl Universe {
         alive_count
     }
 
-    pub fn game_logic(&self) {
-        self.check_neighbours(24);
+    pub fn game_logic(&mut self) {
+        let mut new_cells = self.cell.clone();
+    
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let index = self.get_index(x, y) as u32;
+                let alive_neighbours = self.check_neighbours(index);
+
+                let current_state = &self.cell[index as usize];
+                let new_state = match current_state {
+                    Cell::ALIVE => {
+                        if alive_neighbours < 2 || alive_neighbours > 3 {
+                            Cell::DEAD 
+                        } else {
+                            Cell::ALIVE 
+                        }
+                    }
+                    Cell::DEAD => {
+                        if alive_neighbours == 3 {
+                            Cell::ALIVE 
+                        } else {
+                            Cell::DEAD 
+                        }
+                    }
+                };
+                new_cells[index as usize] = new_state;
+            }
+        }
+        new_cells[45] = Cell::ALIVE;
+        new_cells[75] = Cell::ALIVE;
+        new_cells[105] = Cell::ALIVE;
+        self.cell = new_cells;
     }
 }
+
 impl std::fmt::Display for Universe {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut board = String::new();
@@ -107,21 +144,41 @@ impl std::fmt::Display for Universe {
             for x in 0..self.width {
                 let index = self.get_index(x, y);
                 match self.cell[index] {
-                    Cell::ALIVE => board.push_str("#"),
-                    Cell::DEAD => board.push_str("."),
+                    Cell::ALIVE => board.push('#'),
+                    Cell::DEAD => board.push('.'),
                 }
             }
-            board.push_str("\n")
+            board.push('\n');
         }
-
         write!(f, "{}", board)
     }
 }
 
-pub fn main() {
-    let un = Universe::new(5, 5);
-    un.game_logic();
-    println!("{}", un)
+fn clear_screen() {
+    let mut stdout = stdout();
+    write!(stdout, "{}{}", clear::All, cursor::Hide).unwrap();
+    stdout.flush().unwrap();
+}
+
+fn main() {
+    let width = 30;
+    let height = 30;
+    let mut universe = Universe::new(width, height);
+
+    let glider_pattern = vec![
+        (1, 0), (2, 1), (0, 2), (1, 2), (2, 2),
+    ];
+
+    universe.initialize_with_pattern(&glider_pattern);
+
+    
+
+    loop {
+        clear_screen();
+        println!("{}", universe);
+        universe.game_logic();
+        sleep(Duration::from_millis(50));
+    }
 }
 
 #[cfg(test)]
