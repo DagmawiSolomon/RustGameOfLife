@@ -130,9 +130,6 @@ impl Universe {
                 new_cells[index as usize] = new_state;
             }
         }
-        new_cells[45] = Cell::ALIVE;
-        new_cells[75] = Cell::ALIVE;
-        new_cells[105] = Cell::ALIVE;
         self.cell = new_cells;
     }
 }
