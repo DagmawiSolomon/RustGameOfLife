@@ -10,9 +10,9 @@ pub struct Universe {
     cell: Vec<Cell>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum IndexError<'a> {
-    OutOfBounds(&'a str),
+    OutOfBounds(&'a str ),
 }
 
 impl Universe {
@@ -35,72 +35,106 @@ impl Universe {
         }
     }
 
-    fn get_left(&self, index: u32) -> Result<u32, IndexError> {
-        if index > 0 {
-            if (index % self.width) > 0 {
-                Ok(index - 1)
-            } else {
-                Ok(u32::MAX)
+    // fix type issue
+    fn get_left(&self, index: u32) -> Result<Option<u32>, IndexError>{
+            if index > 0{
+                if (index % self.width) > 0{
+                    Ok(Some(index - 1))
+                } else {
+                    Ok(None)
+                }
+            } 
+            else {
+                Err(IndexError::OutOfBounds("Index out of range"))
             }
-        } else {
-            Err(IndexError::OutOfBounds("Left: Index out of range"))
-        }
     }
 
-    fn get_right(&self, index: u32) -> Result<u32, IndexError> {
-        if index < self.width * self.height {
-            if index != u32::MAX && (index % self.width) < self.width - 1 {
-                Ok(index + 1)
+    // fix type issue
+    fn get_right(&self, index: u32) -> Result<Option<u32>, IndexError>{
+       
+     if index < self.width * self.height {
+                if (index % self.width) < self.width - 1 {
+                    Ok(Some(index + 1))
+                } else {
+                    Ok(None)
+                }
             } else {
-                Ok(u32::MAX)
+                Err(IndexError::OutOfBounds("Index out of range"))
+                }
+    }
+
+
+    fn get_top(&self, index:u32) -> Result<Option<u32>, IndexError>{
+        if index > 0{
+            if index as i32 - self.width as i32 >= 0{
+                Ok(Some(index - self.width))
             }
-        } else {
+            else{
+                Ok(None)
+            }
+        }
+        else{
             Err(IndexError::OutOfBounds("Index out of range"))
         }
-    }
 
-    fn get_top(&self, index: u32) -> Result<u32, IndexError> {
-        if index > self.width {
+       
+    }
+    
+    fn get_bottom(&self, index: u32) -> Result<Option<u32>, IndexError> {
+        if index > self.width * self.height {
+            let new_index = index + self.width;
+        
+            if new_index >= self.width * self.height {
+                Ok(None) 
+            } else {
+                Ok(Some(new_index)) // Valid index
+            }   
+        }
+        else{
             return Err(IndexError::OutOfBounds("Index out of range"));
         }
-        if index as i32 - self.width as i32 >= 0 {
-            Ok(index - self.width)
-        } else {
-            Ok(u32::MAX)
-        }
+        
+        
     }
-
-    fn get_bottom(&self, index: u32) -> Result<u32, IndexError> {
-        if index >= self.width * self.height {
-            return Err(IndexError::OutOfBounds("Index out of range"));
-        }
-
-        let new_index = index + self.width;
-
-        if new_index >= self.width * self.height {
-            Ok(u32::MAX)
-        } else {
-            Ok(new_index)
-        }
-    }
-
+    
     fn get_neighbours(&self, index: u32) {
+
         let left = self.get_left(index);
         let right = self.get_right(index);
 
         let top = self.get_top(index);
-        let top_left = self.get_left(index);
-        let top_right = self.get_right(index);
+        let top_left = match top {
+            Ok(index) => self.get_left(index.unwrap()),
+            Ok(None) =>  Ok(None),
+            Err(e) => Err(e),
+        };
+        let top_right = match top {
+            Ok(index) => self.get_right(index.unwrap()),
+            Ok(None) =>  Ok(None),
+            Err(e) => Err(e),
+        };
 
         let bottom = self.get_bottom(index);
-        let bottom_left = self.get_left(index);
-        let bottom_right = self.get_right(index);
-        println!("{:?} {:?} {:?}", top_left, top, top_right);
-        println!("{:?} {:?} {:?}", left, index, right);
-        println!("{:?} {:?} {:?}", bottom_left, bottom, bottom_right);
+        let bottom_left: Result<Option<u32>, IndexError> = match bottom {
+            Ok(index) => self.get_left(index.unwrap()),
+            Ok(None) =>  Ok(None),
+            Err(e) => Err(e),
+        };
+        let bottom_right = match bottom {
+            Ok(index) => self.get_right(index.unwrap()),
+            Ok(None) =>  Ok(None),
+            Err(e) => Err(e),
+        };
+      
+        println!("{:?} {:?} {:?}",top_left, top, top_right);
+        println!("{:?} {:?} {:?}",left,index,right);
+        println!("{:?} {:?} {:?}",bottom_left, bottom, bottom_right);
+        
     }
     pub fn game_logic(&self) {
-        self.get_neighbours(24);
+        
+            self.get_neighbours(24);
+        
     }
 }
 impl std::fmt::Display for Universe {
@@ -127,6 +161,7 @@ pub fn main() {
     println!("{}", un)
 }
 
+
 // #[cfg(test)]
 // mod tests {
 //     use super::*;
@@ -135,7 +170,7 @@ pub fn main() {
 //     fn test_get_left() {
 //         let un = Universe::new(5, 5);
 //         // Test left at index 1 (should return Some(0))
-//         assert_eq!(un.get_left(Ok(Some(1)), Some(0));
+//         assert_eq!(un.get_left(Some(1)), Some(0));
 //         // Test left at index 0 (should return None, as it's at the edge)
 //         assert_eq!(un.get_left(Some(0)), None);
 //         // Test left at index 5 (should return None, as it's at the start of the second row)
@@ -154,7 +189,7 @@ pub fn main() {
 //         // Test right at index 9 (should return None, as it's at the end of the second row)
 //         assert_eq!(un.get_right(Some(9)), None);
 //         // Test None input (should return None)
-//         assert_eq!(un.get_right(Ok(None)), None);
+//         assert_eq!(un.get_right(None), None);
 //     }
 
 //     #[test]
