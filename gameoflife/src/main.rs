@@ -30,7 +30,6 @@ impl Universe {
         }
     }
 
-    // fix type issue
     fn get_left(&self, index: u32) -> Option<u32> {
         if index > 0 && index % self.width > 0 {
             Some(index - 1)
@@ -69,7 +68,7 @@ impl Universe {
 
         let top = self.get_top(index);
         let top_left: Option<u32> = match top {
-            Some(index)=> self.get_left(index),
+            Some(index) => self.get_left(index),
             None => None,
         };
         let top_right = match top {
@@ -146,7 +145,6 @@ mod tests {
         assert_eq!(un.get_top(24), Some(19));
         assert_eq!(un.get_top(3), None);
         assert_eq!(un.get_top(0), None);
-     
     }
 
     #[test]
@@ -156,8 +154,5 @@ mod tests {
         assert_eq!(un.get_bottom(6), Some(11));
         assert_eq!(un.get_bottom(21), None);
         assert_eq!(un.get_bottom(24), None);
-       
     }
-
-
 }
