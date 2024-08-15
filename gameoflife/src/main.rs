@@ -11,7 +11,6 @@ pub struct Universe {
 }
 
 impl Universe {
-    // try passing heigh as a value
     fn get_index(&self, x: u32, y: u32) -> usize {
         (y * self.height + x) as usize
     }
@@ -62,36 +61,43 @@ impl Universe {
         }
     }
 
-    fn get_neighbours(&self, index: u32) {
-        let left = self.get_left(index);
-        let right = self.get_right(index);
+    fn check_neighbours(&self, index: u32) -> u32 {
+        fn is_alive(cell: Option<u32>, cells: &[Cell]) -> u32 {
+            match cell {
+                Some(i) => match cells[i as usize] {
+                    Cell::ALIVE => 1,
+                    _ => 0,
+                },
+                None => 0,
+            }
+        }
 
-        let top = self.get_top(index);
-        let top_left: Option<u32> = match top {
-            Some(index) => self.get_left(index),
-            None => None,
-        };
-        let top_right = match top {
-            Some(index) => self.get_right(index),
-            None => None,
-        };
+        let mut alive_count = 0;
 
-        let bottom = self.get_bottom(index);
-        let bottom_left: Option<u32> = match bottom {
-            Some(index) => self.get_left(index),
-            None => None,
-        };
-        let bottom_right = match bottom {
-            Some(index) => self.get_right(index),
-            None => None,
-        };
+        let directions = [
+            self.get_left(index),
+            self.get_right(index),
+            self.get_top(index),
+            self.get_bottom(index),
+            self.get_top(index)
+                .and_then(|top_index| self.get_left(top_index)),
+            self.get_top(index)
+                .and_then(|top_index| self.get_right(top_index)),
+            self.get_bottom(index)
+                .and_then(|bottom_index| self.get_left(bottom_index)),
+            self.get_bottom(index)
+                .and_then(|bottom_index| self.get_right(bottom_index)),
+        ];
 
-        println!("{:?} {:?} {:?}", top_left, top, top_right);
-        println!("{:?} {:?} {:?}", left, index, right);
-        println!("{:?} {:?} {:?}", bottom_left, bottom, bottom_right);
+        for cell in directions {
+            alive_count += is_alive(cell, &self.cell);
+        }
+
+        alive_count
     }
+
     pub fn game_logic(&self) {
-        self.get_neighbours(24);
+        self.check_neighbours(24);
     }
 }
 impl std::fmt::Display for Universe {
